@@ -84,6 +84,7 @@ while true; do
     if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
         # Raspberry Pi
         temp=$(($(cat /sys/class/thermal/thermal_zone0/temp) / 1000))
+        [[ "$temp" =~ ^[0-9]+$ ]] || temp=0
         echo -e "SoC: $(get_color "$temp")"
         publish_mqtt "cpu/soc" "$temp"
     else
