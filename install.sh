@@ -7,6 +7,20 @@ SCRIPT_PATH="$INSTALL_DIR/system-sensors.sh"
 
 echo "=== Instalator system-sensors ==="
 
+# --- Interaktywne pytanie o połączenie MQTT ---
+echo "Wybierz sposób połączenia z brokerem MQTT:"
+echo "1) LAN (domyślny: 10.10.0.4)"
+echo "2) VPN (ustaw IP na 10.10.10.4)"
+read -p "Twój wybór [1/2]: " CONNECTION_CHOICE
+
+if [[ "$CONNECTION_CHOICE" == "2" ]]; then
+    MQTT_HOST="10.10.10.4"
+else
+    MQTT_HOST="10.10.0.4"
+fi
+
+echo "Ustawiono adres MQTT: $MQTT_HOST"
+
 # 1. Aktualizacja systemu
 echo "[1/5] Aktualizacja pakietów..."
 sudo apt update -y
@@ -29,55 +43,53 @@ fi
 echo "[3/5] Tworzenie skryptu monitorującego..."
 sudo mkdir -p "$INSTALL_DIR"
 
-cat <<'EOF' | sudo tee "$SCRIPT_PATH" >/dev/null
+cat <<EOF | sudo tee "$SCRIPT_PATH" >/dev/null
 #!/bin/bash
 
 # Konfiguracja MQTT
-MQTT_HOST="10.10.0.4"
-MQTT_PORT="1883"   # zmień na 9002 dla websocket
+MQTT_HOST="$MQTT_HOST"
+MQTT_PORT="1883"
 MQTT_TOPIC="sensors"
 
-# Hostname systemu
-HOSTNAME=$(hostname)
+HOSTNAME=\$(hostname)
 
-# Kolory do konsoli
 RED='\033[0;31m'
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
 get_color() {
-    local temp=$1
+    local temp=\$1
     if (( temp >= 80 )); then
-        echo -e "${RED}${temp}°C${NC}"
+        echo -e "\${RED}\${temp}°C\${NC}"
     elif (( temp >= 60 )); then
-        echo -e "${YELLOW}${temp}°C${NC}"
+        echo -e "\${YELLOW}\${temp}°C\${NC}"
     else
-        echo -e "${GREEN}${temp}°C${NC}"
+        echo -e "\${GREEN}\${temp}°C\${NC}"
     fi
 }
 
 publish_mqtt() {
-    local key=$1
-    local value=$2
-    mosquitto_pub -h "$MQTT_HOST" -p "$MQTT_PORT" -t "$MQTT_TOPIC/$HOSTNAME/$key" -m "$value" >/dev/null 2>&1
+    local key=\$1
+    local value=\$2
+    mosquitto_pub -h "\$MQTT_HOST" -p "\$MQTT_PORT" -t "\$MQTT_TOPIC/\$HOSTNAME/\$key" -m "\$value" >/dev/null 2>&1
 }
 
 while true; do
     clear
-    echo -e "=== ${YELLOW}Monitor temperatur (${HOSTNAME})${NC} ==="
+    echo -e "=== \${YELLOW}Monitor temperatur (\$HOSTNAME)\${NC} ==="
 
     # CPU
     echo -e "\nCPU:"
     sensors | grep -E "Core|Package" | while read -r line; do
-        temp=$(echo "$line" | grep -oP '\+?\K[0-9]+(?=\.?[0-9]*°C)' | head -n1)
-        if [[ -n "$temp" ]]; then
-            color_temp=$(get_color "$temp")
-            name=$(echo "$line" | awk '{print $1}' | tr -d ':')
-            echo "$line" | sed -E "s/([0-9]+\.?[0-9]*°C)/$color_temp/"
-            publish_mqtt "cpu/$name" "$temp"
+        temp=\$(echo "\$line" | grep -oP '\+?\K[0-9]+(?=\.?[0-9]*°C)' | head -n1)
+        if [[ -n "\$temp" ]]; then
+            color_temp=\$(get_color "\$temp")
+            name=\$(echo "\$line" | awk '{print \$1}' | tr -d ':')
+            echo "\$line" | sed -E "s/([0-9]+\.?[0-9]*°C)/\$color_temp/"
+            publish_mqtt "cpu/\$name" "\$temp"
         else
-            echo "$line"
+            echo "\$line"
         fi
     done
 
@@ -85,32 +97,29 @@ while true; do
     echo -e "\nGPU:"
     gpu_found=false
 
-    # AMD
     if command -v rocm-smi &>/dev/null; then
-        temp=$(rocm-smi --showtemp | grep -oP '[0-9]+(?=\.0\s*C)' | head -n1)
-        if [ -n "$temp" ]; then
-            echo -e "AMD GPU: $(get_color "$temp")"
-            publish_mqtt "gpu/amd" "$temp"
+        temp=\$(rocm-smi --showtemp | grep -oP '[0-9]+(?=\.0\s*C)' | head -n1)
+        if [ -n "\$temp" ]; then
+            echo -e "AMD GPU: \$(get_color "\$temp")"
+            publish_mqtt "gpu/amd" "\$temp"
             gpu_found=true
         fi
     fi
 
-    # NVIDIA
     if command -v nvidia-smi &>/dev/null; then
-        temp=$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits | head -n1)
-        if [[ "$temp" =~ ^[0-9]+$ ]]; then
-            echo -e "NVIDIA GPU: $(get_color "$temp")"
-            publish_mqtt "gpu/nvidia" "$temp"
+        temp=\$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits | head -n1)
+        if [[ "\$temp" =~ ^[0-9]+$ ]]; then
+            echo -e "NVIDIA GPU: \$(get_color "\$temp")"
+            publish_mqtt "gpu/nvidia" "\$temp"
             gpu_found=true
         fi
     fi
 
-    # Inne GPU
-    if [ "$gpu_found" = false ]; then
-        temp=$(sensors | grep -iE 'edge|junction|mem|gpu' | grep -oP '[0-9]+(?=\.?[0-9]*°C)' | head -n1)
-        if [[ "$temp" =~ ^[0-9]+$ ]]; then
-            echo -e "Inne GPU: $(get_color "$temp")"
-            publish_mqtt "gpu/other" "$temp"
+    if [ "\$gpu_found" = false ]; then
+        temp=\$(sensors | grep -iE 'edge|junction|mem|gpu' | grep -oP '[0-9]+(?=\.?[0-9]*°C)' | head -n1)
+        if [[ "\$temp" =~ ^[0-9]+$ ]]; then
+            echo -e "Inne GPU: \$(get_color "\$temp")"
+            publish_mqtt "gpu/other" "\$temp"
         else
             echo "Brak danych GPU"
         fi
@@ -119,11 +128,11 @@ while true; do
     # Dyski
     echo -e "\nDyski:"
     for disk in /dev/nvme* /dev/sd[a-z]; do
-        [ -b "$disk" ] || continue
-        temp=$(sudo smartctl -A "$disk" 2>/dev/null | awk '/Temperature_Celsius|Temperature:/ {print $10; exit}')
-        if [[ "$temp" =~ ^[0-9]+$ ]]; then
-            echo -e "$disk: $(get_color "$temp")"
-            publish_mqtt "disk/$(basename "$disk")" "$temp"
+        [ -b "\$disk" ] || continue
+        temp=\$(sudo smartctl -A "\$disk" 2>/dev/null | awk '/Temperature_Celsius|Temperature:/ {print \$10; exit}')
+        if [[ "\$temp" =~ ^[0-9]+$ ]]; then
+            echo -e "\$disk: \$(get_color "\$temp")"
+            publish_mqtt "disk/\$(basename "\$disk")" "\$temp"
         fi
     done
 
