@@ -81,17 +81,25 @@ while true; do
 
     # CPU
     echo -e "\nCPU:"
-    sensors | grep -E "Core|Package" | while read -r line; do
-        temp=\$(echo "\$line" | grep -oP '\+?\K[0-9]+(?=\.?[0-9]*°C)' | head -n1)
-        if [[ -n "\$temp" ]]; then
-            color_temp=\$(get_color "\$temp")
-            name=\$(echo "\$line" | awk '{print \$1}' | tr -d ':')
-            echo "\$line" | sed -E "s/([0-9]+\.?[0-9]*°C)/\$color_temp/"
-            publish_mqtt "cpu/\$name" "\$temp"
-        else
-            echo "\$line"
-        fi
-    done
+    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
+        # Raspberry Pi
+        temp=$(($(cat /sys/class/thermal/thermal_zone0/temp) / 1000))
+        echo -e "SoC: $(get_color "$temp")"
+        publish_mqtt "cpu/soc" "$temp"
+    else
+        # inne systemy
+        sensors | grep -E "Core|Package" | while read -r line; do
+            temp=$(echo "$line" | grep -oP '\+?\K[0-9]+(?=\.?[0-9]*°C)' | head -n1)
+            if [[ -n "$temp" ]]; then
+                color_temp=$(get_color "$temp")
+                name=$(echo "$line" | awk '{print $1}' | tr -d ':')
+                echo "$line" | sed -E "s/([0-9]+\.?[0-9]*°C)/$color_temp/"
+                publish_mqtt "cpu/$name" "$temp"
+            else
+                echo "$line"
+            fi
+        done
+    fi
 
     # GPU
     echo -e "\nGPU:"
