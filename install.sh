@@ -27,7 +27,7 @@ sudo apt update -y
 
 # 2. Instalacja wymaganych pakietów
 echo "[2/5] Instalacja wymaganych pakietów..."
-sudo apt install -y lm-sensors smartmontools mosquitto-clients pciutils
+sudo apt install -y lm-sensors smartmontools mosquitto-clients pciutils fancontrol
 
 # (opcjonalne: narzędzia do GPU)
 if lspci | grep -qi nvidia; then
