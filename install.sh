@@ -43,111 +43,7 @@ fi
 echo "[3/5] Tworzenie skryptu monitorującego..."
 sudo mkdir -p "$INSTALL_DIR"
 
-cat <<EOF | sudo tee "$SCRIPT_PATH" >/dev/null
-#!/bin/bash
-
-# Konfiguracja MQTT
-MQTT_HOST="$MQTT_HOST"
-MQTT_PORT="1883"
-MQTT_TOPIC="sensors"
-
-HOSTNAME=\$(hostname)
-
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
-GREEN='\033[0;32m'
-NC='\033[0m'
-
-get_color() {
-    local temp=\$1
-    if (( temp >= 80 )); then
-        echo -e "\${RED}\${temp}°C\${NC}"
-    elif (( temp >= 60 )); then
-        echo -e "\${YELLOW}\${temp}°C\${NC}"
-    else
-        echo -e "\${GREEN}\${temp}°C\${NC}"
-    fi
-}
-
-publish_mqtt() {
-    local key=\$1
-    local value=\$2
-    mosquitto_pub -h "\$MQTT_HOST" -p "\$MQTT_PORT" -t "\$MQTT_TOPIC/\$HOSTNAME/\$key" -m "\$value" >/dev/null 2>&1
-}
-
-while true; do
-    clear
-    echo -e "=== \${YELLOW}Monitor temperatur (\$HOSTNAME)\${NC} ==="
-
-    # CPU
-    echo -e "\nCPU:"
-    if [ -f /sys/class/thermal/thermal_zone0/temp ]; then
-        # Raspberry Pi
-        temp=$(($(cat /sys/class/thermal/thermal_zone0/temp) / 1000))
-        [[ "$temp" =~ ^[0-9]+$ ]] || temp=0
-        echo -e "SoC: $(get_color "$temp")"
-        publish_mqtt "cpu/soc" "$temp"
-    else
-        # inne systemy
-        sensors | grep -E "Core|Package" | while read -r line; do
-            temp=$(echo "$line" | grep -oP '\+?\K[0-9]+(?=\.?[0-9]*°C)' | head -n1)
-            if [[ -n "$temp" ]]; then
-                color_temp=$(get_color "$temp")
-                name=$(echo "$line" | awk '{print $1}' | tr -d ':')
-                echo "$line" | sed -E "s/([0-9]+\.?[0-9]*°C)/$color_temp/"
-                publish_mqtt "cpu/$name" "$temp"
-            else
-                echo "$line"
-            fi
-        done
-    fi
-
-    # GPU
-    echo -e "\nGPU:"
-    gpu_found=false
-
-    if command -v rocm-smi &>/dev/null; then
-        temp=\$(rocm-smi --showtemp | grep -oP '[0-9]+(?=\.0\s*C)' | head -n1)
-        if [ -n "\$temp" ]; then
-            echo -e "AMD GPU: \$(get_color "\$temp")"
-            publish_mqtt "gpu/amd" "\$temp"
-            gpu_found=true
-        fi
-    fi
-
-    if command -v nvidia-smi &>/dev/null; then
-        temp=\$(nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits | head -n1)
-        if [[ "\$temp" =~ ^[0-9]+$ ]]; then
-            echo -e "NVIDIA GPU: \$(get_color "\$temp")"
-            publish_mqtt "gpu/nvidia" "\$temp"
-            gpu_found=true
-        fi
-    fi
-
-    if [ "\$gpu_found" = false ]; then
-        temp=\$(sensors | grep -iE 'edge|junction|mem|gpu' | grep -oP '[0-9]+(?=\.?[0-9]*°C)' | head -n1)
-        if [[ "\$temp" =~ ^[0-9]+$ ]]; then
-            echo -e "Inne GPU: \$(get_color "\$temp")"
-            publish_mqtt "gpu/other" "\$temp"
-        else
-            echo "Brak danych GPU"
-        fi
-    fi
-
-    # Dyski
-    echo -e "\nDyski:"
-    for disk in /dev/nvme* /dev/sd[a-z]; do
-        [ -b "\$disk" ] || continue
-        temp=\$(sudo smartctl -A "\$disk" 2>/dev/null | awk '/Temperature_Celsius|Temperature:/ {print \$10; exit}')
-        if [[ "\$temp" =~ ^[0-9]+$ ]]; then
-            echo -e "\$disk: \$(get_color "\$temp")"
-            publish_mqtt "disk/\$(basename "\$disk")" "\$temp"
-        fi
-    done
-
-    sleep 2
-done
-EOF
+cp temp3.sh $SCRIPT_PATH
 
 sudo chmod +x "$SCRIPT_PATH"
 
@@ -179,3 +75,5 @@ sudo systemctl start $SERVICE_NAME
 
 echo "=== Instalacja zakończona! ==="
 echo "Logi: journalctl -u $SERVICE_NAME -f"
+
+sensors
