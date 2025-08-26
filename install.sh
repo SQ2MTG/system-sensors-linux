@@ -7,20 +7,6 @@ SCRIPT_PATH="$INSTALL_DIR/system-sensors.sh"
 
 echo "=== Instalator system-sensors ==="
 
-# --- Interaktywne pytanie o połączenie MQTT ---
-echo "Wybierz sposób połączenia z brokerem MQTT:"
-echo "1) LAN (domyślny: 10.10.0.4)"
-echo "2) VPN (ustaw IP na 10.10.10.4)"
-read -p "Twój wybór [1/2]: " CONNECTION_CHOICE
-
-if [[ "$CONNECTION_CHOICE" == "2" ]]; then
-    MQTT_HOST="10.10.10.4"
-else
-    MQTT_HOST="10.10.0.4"
-fi
-
-echo "Ustawiono adres MQTT: $MQTT_HOST"
-
 # 1. Aktualizacja systemu
 echo "[1/5] Aktualizacja pakietów..."
 sudo apt update -y
