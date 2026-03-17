@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Konfiguracja MQTT
-MQTT_HOST="10.10.0.4"
+MQTT_HOST="10.10.0.153"
 MQTT_PORT="1883"      # dla MQTT TCP
 #MQTT_PORT="9002/ws" # jeżeli chcesz używać websocket zamiast TCP
-MQTT_TOPIC="sensors"
+MQTT_TOPIC="pc-sensors"
 
 # Hostname systemu
 HOSTNAME=$(hostname)
