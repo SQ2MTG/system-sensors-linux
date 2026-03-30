@@ -131,7 +131,7 @@ Optional (detected automatically):
 
 ## 🧰 Configuration
 
-You can edit `/opt/system-sensors/system-sensors.sh` to customize:
+You can edit `system-sensors.sh` to customize:
 - MQTT host and port  
 - Topic root name  
 - Update interval (`sleep 2` at the bottom of the loop)  
