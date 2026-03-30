@@ -95,21 +95,21 @@ sudo systemctl start system-sensors
 
 By default, data is published to:
 ```
-sensors/<hostname>/<category>/<sensor_name>
+pc-sensors/<hostname>/<category>/<sensor_name>
 ```
 
 **Examples:**
 ```
-sensors/server01/cpu/Core0
-sensors/server01/gpu/nvidia
-sensors/server01/disk/nvme0n1
+pc-sensors/server01/cpu/Core0
+pc-sensors/server01/gpu/nvidia
+pc-sensors/server01/disk/nvme0n1
 ```
 
 You can adjust the broker or topic settings at the top of the script:
 ```bash
-MQTT_HOST="10.10.0.4"
+MQTT_HOST="<MQTT_IP"
 MQTT_PORT="1883"
-MQTT_TOPIC="sensors"
+MQTT_TOPIC="pc-sensors"
 ```
 
 ---
